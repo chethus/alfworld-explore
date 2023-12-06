@@ -440,7 +440,7 @@ def train():
             "id eval steps": id_eval_game_step,
             "ood eval game points": ood_eval_game_points,
             "ood eval steps": ood_eval_game_step
-        }, step=episode_no)
+        })
         with open(output_dir + "/" + json_file_name + '.json', 'a+') as outfile:
             outfile.write(_s + '\n')
             outfile.flush()
