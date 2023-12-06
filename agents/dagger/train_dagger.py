@@ -9,15 +9,18 @@ import yaml
 import argparse
 import pdb
 import logging
+import wandb
+from tqdm import tqdm
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--device", help="which gpu to use [0,1,2,3]", type=str, default='3')
 parser.add_argument("--task", help="which task to train [1,2,3,4,5,6]", type=int, default=1)
 parser.add_argument("--save_path", help="path to save results and models", type=str, default="results_alltasks10")
 parser.add_argument("--config_file", help="path to config file", default="config/base_config.yaml")
+parser.add_argument("--prefix", help="wandb prefix", default="dagger")
+parser.add_argument("--run_name", help="wandb run name", default="test")
 args = parser.parse_args()
 
-os.environ['ALFRED_ROOT'] = '/home/amax/zzhaoao/alfworld_explore'
 os.environ['CUDA_VISIBLE_DEVICES']=args.device
 print(torch.cuda.device_count())
 
@@ -36,6 +39,13 @@ from agents.explore.embed import ProblemHandler
 
 
 def train(): 
+
+    wandb.init(
+        entity="chet",
+        project="alfworld-explore",
+        group=args.prefix,
+        name=args.run_name,
+    )
 
     time_1 = datetime.datetime.now()
     step_time = []
@@ -112,6 +122,7 @@ def train():
     #         agent.load_pretrained_model(data_dir + "/" + agent.load_from_tag + ".pt")
     #         agent.update_target_net()
 
+    pbar = tqdm(total=agent.max_episode)
     while(True):
         if episode_no > agent.max_episode:
             break
@@ -273,6 +284,7 @@ def train():
         # finish game
         agent.finish_of_episode(episode_no, batch_size)
         episode_no += batch_size
+        pbar.update(batch_size)
 
         if not report:
             continue
@@ -415,9 +427,24 @@ def train():
                          "id eval steps": str(id_eval_game_step),
                          "ood eval game points": str(ood_eval_game_points),
                          "ood eval steps": str(ood_eval_game_step)})
+        wandb.log({
+            "time spent seconds":  time_spent_seconds,
+            "episodes": episode_no,
+            "episodes per second": eps_per_sec,
+            "loss": running_avg_dagger_loss.get_avg(),
+            "train game points": running_avg_game_points.get_avg(),
+            "train game steps": running_avg_game_steps.get_avg(),
+            "train student points": running_avg_student_points.get_avg(),
+            "train student steps": running_avg_student_steps.get_avg(),
+            "id eval game points": id_eval_game_points,
+            "id eval steps": id_eval_game_step,
+            "ood eval game points": ood_eval_game_points,
+            "ood eval steps": ood_eval_game_step
+        })
         with open(output_dir + "/" + json_file_name + '.json', 'a+') as outfile:
             outfile.write(_s + '\n')
             outfile.flush()
+    pbar.close()
     exp_agent.save_model_to_path(output_dir + "/" + agent.experiment_tag + "_" + str(episode_no) + "_exp_final.pt")
     problem_handler.save_model_to_path(output_dir + "/" + agent.experiment_tag + "_" + str(episode_no) + "_problem_final.pt")
     agent.save_model_to_path(output_dir + "/" + agent.experiment_tag + "_" + str(episode_no) + "_final.pt")

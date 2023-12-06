@@ -2,7 +2,7 @@ import logging
 import numpy as np
 import torch
 import torch.nn.functional as F
-from transformers import DistilBertModel, DistilBertTokenizer
+from transformers import AutoModel, AutoTokenizer
 logging.getLogger("transformers.tokenization_utils").setLevel(logging.ERROR)
 
 import modules.memory as memory
@@ -88,11 +88,11 @@ class BaseAgent:
         print(self.config)
         self.load_config()
 
-        # bert tokenizer and model
-        self.tokenizer = DistilBertTokenizer.from_pretrained('distilbert-base-cased')
+        # model and tokenizer
+        self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
         self.word2id = self.tokenizer.get_vocab()
         self.word_vocab = {value:key for key, value in self.word2id.items()}
-        bert_model = DistilBertModel.from_pretrained('distilbert-base-cased')
+        bert_model = AutoModel.from_pretrained(self.model_name)
         bert_model.transformer = None
         bert_model.encoder = None
         for param in bert_model.parameters():
@@ -152,6 +152,7 @@ class BaseAgent:
         self.load_pretrained = self.config['general']['checkpoint']['load_pretrained']
         self.load_from_tag = self.config['general']['checkpoint']['load_from_tag']
 
+        self.model_name = self.config['general']['model']['name']
         self.recurrent = self.config['general']['model']['recurrent']
 
         # RL specific

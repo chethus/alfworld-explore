@@ -2,7 +2,7 @@ dataset:
   data_path: '../data/json_2.1.1/train'
   eval_id_data_path: '../data/json_2.1.1/valid_seen'        # null/None to disable
   eval_ood_data_path: '../data/json_2.1.1/valid_unseen'     # null/None to disable
-  num_train_games: 1000                                     # max training games (<=0 indicates full dataset)
+  num_train_games: -1                                       # max training games (<=0 indicates full dataset)
   num_eval_games: -1                                        # max evaluation games (<=0 indicates full dataset)
 
 pddl:
@@ -46,7 +46,7 @@ general:
 
   training:
     batch_size: 10
-    max_episode: 10000
+    max_episode: 50000
     smoothing_eps: 0.1
     optimizer:
       learning_rate: 0.001
@@ -65,7 +65,7 @@ general:
     load_from_tag: 'not loading anything'                   # name of pre-trained model to load in save_path
 
   model:
-    name: 'distilbert-base-cased'
+    name: 'google/electra-base-discriminator'
     encoder_layers: 1
     decoder_layers: 1
     encoder_conv_num: 5

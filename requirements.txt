@@ -1,4 +1,4 @@
-numpy==1.16.2
+numpy
 pandas
 opencv-python
 networkx
@@ -7,12 +7,12 @@ tqdm
 vocab
 revtok
 Pillow
-torch==1.2.0
-torchvision==0.4.0
+torch
+torchvision
 tensorboardX==1.8
 ai2thor==2.1.0
 transformers
-tokenizers==0.8.1rc2
+tokenizers
 scipy
 ipython
 matplotlib
@@ -27,4 +27,3 @@ pyyaml
 pytz
 visdom
 https://github.com/MarcCote/downward/archive/faster_replan.zip
-https://github.com/MohitShridhar/TextWorld/archive/handcoded_expert_integration.zip

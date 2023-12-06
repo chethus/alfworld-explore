@@ -18,7 +18,6 @@ parser.add_argument("--log_path", type=str, default="/home/amax/zzhaoao/alfworld
 parser.add_argument("--config_file", help="path to config file", default="config/eval_config.yaml")
 args = parser.parse_args()
 
-os.environ['ALFRED_ROOT'] = '/home/amax/zzhaoao/alfworld_explore'
 os.environ['CUDA_VISIBLE_DEVICES']=args.device
 print(torch.cuda.device_count())
 
