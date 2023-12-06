@@ -160,8 +160,8 @@ class TextDAggerAgent(BaseAgent):
         h_td, td_mask = self.encode(seq_task_desc_strings[0], use_model="online")
         problem_embeddings_all = problem_handler.get_problem_embeddings(problem_ids)
         for step_no in range(self.dagger_replay_sample_history_length):
-            input_target_strings = [" ".join(["[CLS]"] + item.split()) for item in seq_target_strings[step_no]]
-            output_target_strings = [" ".join(item.split() + ["[SEP]"]) for item in seq_target_strings[step_no]]
+            input_target_strings = [" ".join([self.start_token] + item.split()) for item in seq_target_strings[step_no]]
+            output_target_strings = [" ".join(item.split() + [self.stop_token]) for item in seq_target_strings[step_no]]
 
             input_obs = self.get_word_input(seq_observation_strings[step_no])
             h_obs, obs_mask = self.encode(seq_observation_strings[step_no], use_model="online")
@@ -286,7 +286,7 @@ class TextDAggerAgent(BaseAgent):
             for b in range(batch_size):
 
                 # starts from CLS tokens
-                __input_target_list = [self.word2id["[CLS]"]]
+                __input_target_list = [self.word2id[self.start_token]]
                 __input_obs = input_obs[b: b + 1]  # 1 x obs_len
                 __obs_mask = obs_mask[b: b + 1]  # 1 x obs_len
                 __aggregated_obs_representation = aggregated_obs_representation[b: b + 1]  # 1 x obs_len x hid
@@ -312,7 +312,7 @@ class TextDAggerAgent(BaseAgent):
                     score, n = nodes_queue.get()
                     __input_target_list = n.input_target
 
-                    if (n.input_target[-1] == self.word2id["[SEP]"] or n.length >= self.max_target_length) and n.previous_node != None:
+                    if (n.input_target[-1] == self.word2id[self.stop_token] or n.length >= self.max_target_length) and n.previous_node != None:
                         ended_nodes.append((score, n))
                         # if we reached maximum # of sentences required
                         if len(ended_nodes) >= generate_top_k:
@@ -355,7 +355,7 @@ class TextDAggerAgent(BaseAgent):
                     utte = n.input_target
                     utte_string = self.tokenizer.decode(utte)
                     utterances.append(utte_string)
-                utterances = [item.replace("[CLS]", "").replace("[SEP]", "").strip() for item in utterances]
+                utterances = [item.replace(self.start_token, "").replace("agent.stop_token", "").strip() for item in utterances]
                 utterances = [item.replace(" in / on ", " in/on " ) for item in utterances]
                 res.append(utterances)
             return res, current_dynamics

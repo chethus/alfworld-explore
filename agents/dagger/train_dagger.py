@@ -167,7 +167,7 @@ def train():
         else:
             action_candidate_list = list(infos["admissible_commands"])
         action_candidate_list = agent.preprocess_action_candidates(action_candidate_list)
-        observation_strings = [item + " [SEP] " + a for item, a in zip(observation_strings, execute_actions)]  # appending the chosen action at previous step into the observation
+        observation_strings = [item + f" {agent.stop_token} " + a for item, a in zip(observation_strings, execute_actions)]  # appending the chosen action at previous step into the observation
 
         # it requires to store sequences of transitions into memory with order,
         # so we use a cache to keep what agents returns, and push them into memory
@@ -233,7 +233,7 @@ def train():
             else:
                 action_candidate_list = list(infos["admissible_commands"])
             action_candidate_list = agent.preprocess_action_candidates(action_candidate_list)
-            observation_strings = [item + " [SEP] " + a for item, a in zip(observation_strings, execute_actions)]  # appending the chosen action at previous step into the observation
+            observation_strings = [item + f" {agent.stop_token} " + a for item, a in zip(observation_strings, execute_actions)]  # appending the chosen action at previous step into the observation
             previous_dynamics = current_dynamics
 
             if step_in_total % agent.dagger_update_per_k_game_steps == 0:

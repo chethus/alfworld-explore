@@ -192,7 +192,7 @@ class TextDQNAgent(BaseAgent):
 
             for b in range(batch_size):
                 # starts from CLS tokens
-                __input_target_list = [self.word2id["[CLS]"]]
+                __input_target_list = [self.word2id[self.start_token]]
                 __input_obs = input_obs[b: b + 1]  # 1 x obs_len
                 __obs_mask = obs_mask[b: b + 1]  # 1 x obs_len
                 __aggregated_obs_representation = aggregated_obs_representation[b: b + 1]  # 1 x obs_len x hid
@@ -216,7 +216,7 @@ class TextDQNAgent(BaseAgent):
                     score, n = nodes_queue.get()
                     __input_target_list = n.input_target
 
-                    if (n.input_target[-1] == self.word2id["[SEP]"] or n.length >= self.max_target_length) and n.previous_node != None:
+                    if (n.input_target[-1] == self.word2id[self.stop_token] or n.length >= self.max_target_length) and n.previous_node != None:
                         ended_nodes.append((score, n))
                         # if we reached maximum # of sentences required
                         if len(ended_nodes) >= generate_top_k:
@@ -260,7 +260,7 @@ class TextDQNAgent(BaseAgent):
                     utte_string = self.tokenizer.decode(utte)
                     utterances.append(utte_string)
 
-                utterances = [item.replace("[CLS]", "").replace("[SEP]", "").strip() for item in utterances]
+                utterances = [item.replace(self.start_token, "").replace(self.stop_token, "").strip() for item in utterances]
                 utterances = [item.replace(" in / on ", " in/on " ) for item in utterances]
                 chosen_actions.append(utterances)
             return chosen_actions, current_dynamics, obs_mask, aggregated_obs_representation
@@ -281,7 +281,7 @@ class TextDQNAgent(BaseAgent):
                 current_dynamics = None
 
             # greedy generation
-            input_target_list = [[self.word2id["[CLS]"]] for i in range(batch_size)]
+            input_target_list = [[self.word2id[self.start_token]] for i in range(batch_size)]
             eos = np.zeros(batch_size)
             for _ in range(self.max_target_length):
 
@@ -296,16 +296,16 @@ class TextDQNAgent(BaseAgent):
                 for b in range(batch_size):
                     new_stuff = [pred[b]] if eos[b] == 0 else []
                     input_target_list[b] = input_target_list[b] + new_stuff
-                    if pred[b] == self.word2id["[SEP]"]:
+                    if pred[b] == self.word2id[self.stop_token]:
                         eos[b] = 1
                 if np.sum(eos) == batch_size:
                     break
             chosen_actions = [self.tokenizer.decode(item) for item in input_target_list]
-            chosen_actions = [item.replace("[CLS]", "").replace("[SEP]", "").strip() for item in chosen_actions]
+            chosen_actions = [item.replace(self.start_token, "").replace(self.stop_token, "").strip() for item in chosen_actions]
             chosen_actions = [item.replace(" in / on ", " in/on " ) for item in chosen_actions]
             chosen_indices = [item[1:] for item in input_target_list]
             for i in range(len(chosen_indices)):
-                if chosen_indices[i][-1] == self.word2id["[SEP]"]:
+                if chosen_indices[i][-1] == self.word2id[self.stop_token]:
                     chosen_indices[i] = chosen_indices[i][:-1]
             return chosen_actions, chosen_indices, current_dynamics
 
@@ -330,7 +330,7 @@ class TextDQNAgent(BaseAgent):
 
             for b in range(batch_size):
                 # starts from CLS tokens
-                __input_target_list = [self.word2id["[CLS]"]]
+                __input_target_list = [self.word2id[self.start_token]]
                 __input_obs = input_obs[b: b + 1]  # 1 x obs_len
                 __obs_mask = obs_mask[b: b + 1]  # 1 x obs_len
                 __aggregated_obs_representation = aggregated_obs_representation[b: b + 1]  # 1 x obs_len x hid
@@ -354,7 +354,7 @@ class TextDQNAgent(BaseAgent):
                     score, n = nodes_queue.get()
                     __input_target_list = n.input_target
 
-                    if (n.input_target[-1] == self.word2id["[SEP]"] or n.length >= self.max_target_length) and n.previous_node != None:
+                    if (n.input_target[-1] == self.word2id[self.stop_token] or n.length >= self.max_target_length) and n.previous_node != None:
                         ended_nodes.append((score, n))
                         # if we reached maximum # of sentences required
                         if len(ended_nodes) >= generate_top_k:
@@ -399,11 +399,11 @@ class TextDQNAgent(BaseAgent):
                     utterances.append(utte_string)
                     indicies.append(utte)
 
-                utterances = [item.replace("[CLS]", "").replace("[SEP]", "").strip() for item in utterances]
+                utterances = [item.replace(self.start_token, "").replace(self.stop_token, "").strip() for item in utterances]
                 utterances = [item.replace(" in / on ", " in/on " ) for item in utterances]
                 indicies = [item[1:] for item in indicies]
                 for i in range(len(indicies)):
-                    if indicies[i][-1] == self.word2id["[SEP]"]:
+                    if indicies[i][-1] == self.word2id[self.stop_token]:
                         indicies[i] = indicies[i][:-1]
 
                 # sample one from all generated beams
@@ -754,8 +754,8 @@ class TextDQNAgent(BaseAgent):
         if self.use_cuda:
             rewards = rewards.cuda()
 
-        input_target = [[self.word2id["[CLS]"]] + item for item in action_indices]
-        ground_truth = [item + [self.word2id["[SEP]"]] for item in action_indices]
+        input_target = [[self.word2id[self.start_token]] + item for item in action_indices]
+        ground_truth = [item + [self.word2id[self.stop_token]] for item in action_indices]
         input_target = self.get_word_input_from_ids(input_target)
         ground_truth = self.get_word_input_from_ids(ground_truth)
 
@@ -778,7 +778,7 @@ class TextDQNAgent(BaseAgent):
 
             # Perform argmax action selection using online network: argmax_a[(z, p(s_t+n, a; θonline))]
             # greedy generation
-            input_target_list = [[self.word2id["[CLS]"]] for i in range(batch_size)]
+            input_target_list = [[self.word2id[self.start_token]] for i in range(batch_size)]
             eos = np.zeros(batch_size)
             for _ in range(self.max_target_length):
                 input_target = copy.deepcopy(input_target_list)
@@ -792,18 +792,18 @@ class TextDQNAgent(BaseAgent):
                 for b in range(batch_size):
                     new_stuff = [pred[b]] if eos[b] == 0 else []
                     input_target_list[b] = input_target_list[b] + new_stuff
-                    if pred[b] == self.word2id["[SEP]"]:
+                    if pred[b] == self.word2id[self.stop_token]:
                         eos[b] = 1
                 if np.sum(eos) == batch_size:
                     break
             chosen_indices = [item[1:] for item in input_target_list]
             for i in range(len(chosen_indices)):
-                if chosen_indices[i][-1] == self.word2id["[SEP]"]:
+                if chosen_indices[i][-1] == self.word2id[self.stop_token]:
                     chosen_indices[i] = chosen_indices[i][:-1]
 
             # pns # Probabilities p(s_t+n, ·; θtarget)
-            next_input_target = [[self.word2id["[CLS]"]] + item for item in chosen_indices]
-            next_ground_truth = [item + [self.word2id["[SEP]"]] for item in chosen_indices]
+            next_input_target = [[self.word2id[self.start_token]] + item for item in chosen_indices]
+            next_ground_truth = [item + [self.word2id[self.stop_token]] for item in chosen_indices]
             next_input_target = self.get_word_input_from_ids(next_input_target)
             next_ground_truth = self.get_word_input_from_ids(next_ground_truth)
 
@@ -842,8 +842,8 @@ class TextDQNAgent(BaseAgent):
             if self.use_cuda:
                 reward = reward.cuda()
 
-            input_target = [[self.word2id["[CLS]"]] + item for item in action_indices]
-            ground_truth = [item + [self.word2id["[SEP]"]] for item in action_indices]
+            input_target = [[self.word2id[self.start_token]] + item for item in action_indices]
+            ground_truth = [item + [self.word2id[slef.stop_token]] for item in action_indices]
             input_target = self.get_word_input_from_ids(input_target)
             ground_truth = self.get_word_input_from_ids(ground_truth)
 
@@ -876,7 +876,7 @@ class TextDQNAgent(BaseAgent):
 
                 # Perform argmax action selection using online network: argmax_a[(z, p(s_t+n, a; θonline))]
                 # greedy generation
-                input_target_list = [[self.word2id["[CLS]"]] for i in range(batch_size)]
+                input_target_list = [[self.word2id[self.start_token]] for i in range(batch_size)]
                 eos = np.zeros(batch_size)
                 for _ in range(self.max_target_length):
                     input_target = copy.deepcopy(input_target_list)
@@ -890,18 +890,18 @@ class TextDQNAgent(BaseAgent):
                     for b in range(batch_size):
                         new_stuff = [pred[b]] if eos[b] == 0 else []
                         input_target_list[b] = input_target_list[b] + new_stuff
-                        if pred[b] == self.word2id["[SEP]"]:
+                        if pred[b] == self.word2id[self.stop_token]:
                             eos[b] = 1
                     if np.sum(eos) == batch_size:
                         break
                 chosen_indices = [item[1:] for item in input_target_list]
                 for i in range(len(chosen_indices)):
-                    if chosen_indices[i][-1] == self.word2id["[SEP]"]:
+                    if chosen_indices[i][-1] == self.word2id[self.stop_token]:
                         chosen_indices[i] = chosen_indices[i][:-1]
 
                 # pns # Probabilities p(s_t+n, ·; θtarget)
-                next_input_target = [[self.word2id["[CLS]"]] + item for item in chosen_indices]
-                next_ground_truth = [item + [self.word2id["[SEP]"]] for item in chosen_indices]
+                next_input_target = [[self.word2id[self.start_token]] + item for item in chosen_indices]
+                next_ground_truth = [item + [self.word2id[self.stop_token]] for item in chosen_indices]
                 next_input_target = self.get_word_input_from_ids(next_input_target)
                 next_ground_truth = self.get_word_input_from_ids(next_ground_truth)
 
