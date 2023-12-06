@@ -78,7 +78,7 @@ class TextDAggerAgent(BaseAgent):
         return to_np(loss)
 
     def command_generation_teacher_force(self, observation_strings, task_desc_strings, target_strings):
-        input_target_strings = [" ".join([self.start_token] if self.start_token else [] + item.split()) for item in target_strings]
+        input_target_strings = [" ".join([self.start_token] + item.split()) for item in target_strings]
         output_target_strings = [" ".join(item.split() + [self.stop_token]) for item in target_strings]
 
         input_obs = self.get_word_input(observation_strings)
@@ -236,7 +236,7 @@ class TextDAggerAgent(BaseAgent):
                 current_dynamics = None
 
             # greedy generation
-            input_target_list = [[self.word2id[self.start_token] if self.start_token else []] for i in range(batch_size)]
+            input_target_list = [[self.word2id[self.start_token]] for i in range(batch_size)]
             eos = np.zeros(batch_size)
             for _ in range(self.max_target_length):
 
@@ -256,7 +256,7 @@ class TextDAggerAgent(BaseAgent):
                 if np.sum(eos) == batch_size:
                     break
             res = [self.tokenizer.decode(item) for item in input_target_list]
-            res = [item.replace(self.start_token or "", "").replace(self.stop_token, "").strip() for item in res]
+            res = [item.replace(self.start_token, "").replace(self.stop_token, "").strip() for item in res]
             res = [item.replace(" in / on ", " in/on " ) for item in res]
             return res, current_dynamics
 
