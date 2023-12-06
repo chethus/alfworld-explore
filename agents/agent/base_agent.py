@@ -96,7 +96,7 @@ class BaseAgent:
         bert_model.transformer = None
         bert_model.encoder = None
         if bert_model.__class__.__name__ == "GPT2Model":
-            self.start_token = None
+            self.start_token = "|"
             self.stop_token = "."
         else:
             self.start_token = "[CLS]"

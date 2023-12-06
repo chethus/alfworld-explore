@@ -143,3 +143,5 @@ gen/ff_planner/ff
 agents/test.json
 agents/tb_log/
 agents/results*
+agents/wandb
+agents/logs
