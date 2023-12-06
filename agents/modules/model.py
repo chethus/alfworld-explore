@@ -78,7 +78,10 @@ class Policy(torch.nn.Module):
         self.decoder = torch.nn.ModuleList([DecoderBlock(ch_num=self.block_hidden_dim, k=5, block_hidden_dim=self.block_hidden_dim, n_head=self.n_heads, dropout=self.block_dropout) for _ in range(self.decoder_layers)])
         self.decoding_to_embedding = torch.nn.Linear(self.block_hidden_dim, BERT_EMBEDDING_SIZE)
         self.embedding_to_words = torch.nn.Linear(BERT_EMBEDDING_SIZE, self.word_vocab_size, bias=False)
-        self.embedding_to_words.weight = self.bert_model.embeddings.word_embeddings.weight
+        if self.bert_model.__class__.__name__ == "GPT2Model":
+            self.embedding_to_words.weight = self.bert_model.wte.weight
+        else:
+            self.embedding_to_words.weight = self.bert_model.embeddings.word_embeddings.weight
         self.embedding_to_words.weight.requires_grad = False
         self.pointer_softmax = PointerSoftmax(input_dim=self.block_hidden_dim, hidden_dim=self.block_hidden_dim)
 
@@ -111,7 +114,10 @@ class Policy(torch.nn.Module):
             return torch.cat(outputs, 1)
 
         with torch.no_grad():
-            res = self.bert_model.embeddings(_input_words)
+            if self.bert_model.__class__.__name__ == "GPT2Model":
+                res = self.bert_model.wte(_input_words)
+            else:
+                res = self.bert_model.embeddings(_input_words)
             res = res * _input_masks.unsqueeze(-1)
         return res
 
