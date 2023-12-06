@@ -78,8 +78,8 @@ class TextDAggerAgent(BaseAgent):
         return to_np(loss)
 
     def command_generation_teacher_force(self, observation_strings, task_desc_strings, target_strings):
-        input_target_strings = [" ".join(["[CLS]"] + item.split()) for item in target_strings]
-        output_target_strings = [" ".join(item.split() + ["[SEP]"]) for item in target_strings]
+        input_target_strings = [" ".join([self.start_token] if self.start_token else [] + item.split()) for item in target_strings]
+        output_target_strings = [" ".join(item.split() + [self.stop_token]) for item in target_strings]
 
         input_obs = self.get_word_input(observation_strings)
         h_obs, obs_mask = self.encode(observation_strings, use_model="online")
@@ -236,7 +236,7 @@ class TextDAggerAgent(BaseAgent):
                 current_dynamics = None
 
             # greedy generation
-            input_target_list = [[self.word2id["[CLS]"]] for i in range(batch_size)]
+            input_target_list = [[self.word2id[self.start_token] if self.start_token else []] for i in range(batch_size)]
             eos = np.zeros(batch_size)
             for _ in range(self.max_target_length):
 
@@ -251,12 +251,12 @@ class TextDAggerAgent(BaseAgent):
                 for b in range(batch_size):
                     new_stuff = [pred[b]] if eos[b] == 0 else []
                     input_target_list[b] = input_target_list[b] + new_stuff
-                    if pred[b] == self.word2id["[SEP]"]:
+                    if pred[b] == self.word2id[self.stop_token]:
                         eos[b] = 1
                 if np.sum(eos) == batch_size:
                     break
             res = [self.tokenizer.decode(item) for item in input_target_list]
-            res = [item.replace("[CLS]", "").replace("[SEP]", "").strip() for item in res]
+            res = [item.replace(self.start_token or "", "").replace(self.stop_token, "").strip() for item in res]
             res = [item.replace(" in / on ", " in/on " ) for item in res]
             return res, current_dynamics
 

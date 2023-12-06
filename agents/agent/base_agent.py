@@ -95,6 +95,12 @@ class BaseAgent:
         bert_model = AutoModel.from_pretrained(self.model_name)
         bert_model.transformer = None
         bert_model.encoder = None
+        if bert_model.__class__.__name__ == "GPT2Model":
+            self.start_token = None
+            self.stop_token = "."
+        else:
+            self.start_token = "[CLS]"
+            self.stop_token = "[SEP]"
         for param in bert_model.parameters():
             param.requires_grad = False
 
