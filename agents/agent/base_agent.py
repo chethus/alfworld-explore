@@ -8,6 +8,8 @@ logging.getLogger("transformers.tokenization_utils").setLevel(logging.ERROR)
 import modules.memory as memory
 from modules.model import Policy
 from modules.generic import to_np, to_pt, _words_to_ids, pad_sequences, preproc, max_len, ez_gather_dim_1, LinearSchedule, BeamSearchNode
+from modules.lora import LoRALayerWrapper, parameters_to_fine_tune
+import copy
 
 
 class ObservationPool(object):
@@ -89,23 +91,33 @@ class BaseAgent:
         self.load_config()
 
         # model and tokenizer
-        self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
-        self.word2id = self.tokenizer.get_vocab()
-        self.word_vocab = {value:key for key, value in self.word2id.items()}
-        bert_model = AutoModel.from_pretrained(self.model_name)
-        bert_model.transformer = None
-        bert_model.encoder = None
-        if bert_model.__class__.__name__ == "GPT2Model":
-            self.start_token = "---"
-            self.stop_token = "###"
-        else:
-            self.start_token = "[CLS]"
-            self.stop_token = "[SEP]"
-        for param in bert_model.parameters():
+        transformer_model = AutoModel.from_pretrained(self.model_name)
+        transformer_model = copy.deepcopy(transformer_model)
+        # transformer_model.transformer = None
+        # transformer_model.encoder = None
+        for param in transformer_model.parameters():
             param.requires_grad = False
 
-        self.online_net = Policy(config=self.config, bert_model=bert_model, word_vocab_size=len(self.word2id))
-        self.target_net = Policy(config=self.config, bert_model=bert_model, word_vocab_size=len(self.word2id))
+        self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+        if transformer_model.__class__.__name__ == "GPT2Model":
+            self.tokenizer.add_special_tokens({
+                "pad_token": "[PAD]",
+                "sep_token": "[SEP]",
+                "cls_token": "[CLS]",
+            })
+            transformer_model.resize_token_embeddings(len(self.tokenizer))
+            if 'lora' in self.train_mode:
+                for m in transformer_model.h:
+                    m.mlp.c_fc = LoRALayerWrapper(m.mlp.c_fc, int(self.train_mode[4:]))
+                    m.mlp.c_proj = LoRALayerWrapper(m.mlp.c_proj, int(self.train_mode[4:]))
+                    m.attn.c_attn = LoRALayerWrapper(m.attn.c_attn, int(self.train_mode[4:]))
+        self.start_token = "[CLS]"
+        self.stop_token = "[SEP]"
+        self.word2id = self.tokenizer.get_vocab()
+        self.word_vocab = {value:key for key, value in self.word2id.items()}
+
+        self.online_net = Policy(config=self.config, transformer_model=transformer_model, word_vocab_size=len(self.word2id))
+        self.target_net = Policy(config=self.config, transformer_model=transformer_model, word_vocab_size=len(self.word2id))
         self.online_net.train()
         self.target_net.train()
         self.update_target_net()
@@ -116,7 +128,10 @@ class BaseAgent:
             self.target_net.cuda()
 
         # optimizer
-        self.optimizer = torch.optim.Adam(self.online_net.parameters(), lr=self.config['general']['training']['optimizer']['learning_rate'])
+        self.optimizer = torch.optim.Adam(
+            list(self.online_net.parameters()) + parameters_to_fine_tune(transformer_model, self.train_mode),
+            lr=self.config['general']['training']['optimizer']['learning_rate']
+        )
         self.clip_grad_norm = self.config['general']['training']['optimizer']['clip_grad_norm']
 
         # losses
@@ -160,6 +175,7 @@ class BaseAgent:
 
         self.model_name = self.config['general']['model']['name']
         self.recurrent = self.config['general']['model']['recurrent']
+        self.train_mode = self.config["general"]["model"]["mode"]
 
         # RL specific
         # epsilon greedy
@@ -293,7 +309,7 @@ class BaseAgent:
         return self.get_word_input_from_ids(word_id_list)
 
     def get_word_input_from_ids(self, word_id_list):
-        input_word = pad_sequences(word_id_list, maxlen=max_len(word_id_list) + 3, dtype='int32')  # 3 --> see layer.DepthwiseSeparableConv.padding
+        input_word = pad_sequences(word_id_list, maxlen=max_len(word_id_list) + 3, dtype='int32', value=self.word2id['[PAD]'])  # 3 --> see layer.DepthwiseSeparableConv.padding
         input_word = to_pt(input_word, self.use_cuda)
         return input_word
 
@@ -350,7 +366,7 @@ class BaseAgent:
         model = self.choose_model(use_model)
         input_obs = self.get_word_input(observation_strings)
         # encode
-        obs_encoding_sequence, obs_mask = model.encode_text(input_obs)
+        obs_encoding_sequence, obs_mask = model.encode_text(input_obs, pad_ind=self.word2id['[PAD]'])
         return obs_encoding_sequence, obs_mask
 
     def finish_of_episode(self, episode_no, batch_size):

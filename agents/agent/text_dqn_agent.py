@@ -226,7 +226,7 @@ class TextDQNAgent(BaseAgent):
 
                     input_target = pad_sequences([__input_target_list], dtype='int32')
                     input_target = to_pt(input_target, self.use_cuda)
-                    target_mask = compute_mask(input_target)
+                    target_mask = compute_mask(input_target, self.word2id['[PAD]'])
                     # decode for one step using decoder
                     pred = self.online_net.decode(input_target, target_mask, __aggregated_obs_representation, __obs_mask, __current_dynamics, __input_obs)  # 1 x target_length x vocab
                     pred = pred[0][-1].cpu()
@@ -288,7 +288,7 @@ class TextDQNAgent(BaseAgent):
                 input_target = copy.deepcopy(input_target_list)
                 input_target = pad_sequences(input_target, maxlen=max_len(input_target)).astype('int32')
                 input_target = to_pt(input_target, self.use_cuda)
-                target_mask = compute_mask(input_target)  # mask of ground truth should be the same
+                target_mask = compute_mask(input_target, self.word2id['[PAD]'])  # mask of ground truth should be the same
                 pred = self.online_net.decode(input_target, target_mask, aggregated_obs_representation, obs_mask, current_dynamics, input_obs)  # batch x target_length x vocab
                 # pointer softmax
                 pred = to_np(pred[:, -1])  # batch x vocab
@@ -364,7 +364,7 @@ class TextDQNAgent(BaseAgent):
 
                     input_target = pad_sequences([__input_target_list], dtype='int32')
                     input_target = to_pt(input_target, self.use_cuda)
-                    target_mask = compute_mask(input_target)
+                    target_mask = compute_mask(input_target, self.word2id['[PAD]'])
                     # decode for one step using decoder
                     pred = self.online_net.decode(input_target, target_mask, __aggregated_obs_representation, __obs_mask, __current_dynamics, __input_obs)  # 1 x target_length x vocab
                     pred = pred[0][-1].cpu()
@@ -765,7 +765,7 @@ class TextDQNAgent(BaseAgent):
         h_td, td_mask = self.encode(task_desc_strings, use_model="online")
         aggregated_obs_representation = self.online_net.aggretate_information(h_obs, obs_mask, h_td, td_mask)  # batch x obs_length x hid
 
-        target_mask = compute_mask(input_target)  # mask of ground truth should be the same
+        target_mask = compute_mask(input_target, self.word2id['[PAD]'])  # mask of ground truth should be the same
         pred = self.online_net.decode(input_target, target_mask, aggregated_obs_representation, obs_mask, None, input_obs)  # batch x target_length x vocab
         q_value = GetGenerationQValue(pred * target_mask.unsqueeze(-1), ground_truth, target_mask)
 
@@ -784,7 +784,7 @@ class TextDQNAgent(BaseAgent):
                 input_target = copy.deepcopy(input_target_list)
                 input_target = pad_sequences(input_target, maxlen=max_len(input_target)).astype('int32')
                 input_target = to_pt(input_target, self.use_cuda)
-                target_mask = compute_mask(input_target)  # mask of ground truth should be the same
+                target_mask = compute_mask(input_target, self.word2id['[PAD]'])  # mask of ground truth should be the same
                 pred = self.online_net.decode(input_target, target_mask, next_aggregated_obs_representation, next_obs_mask, None, next_input_obs)  # batch x target_length x vocab
                 # pointer softmax
                 pred = to_np(pred[:, -1])  # batch x vocab
@@ -811,7 +811,7 @@ class TextDQNAgent(BaseAgent):
             next_h_td, next_td_mask = self.encode(task_desc_strings, use_model="target")
             next_aggregated_obs_representation = self.target_net.aggretate_information(next_h_obs, next_obs_mask, next_h_td, next_td_mask)  # batch x obs_length x hid
 
-            next_target_mask = compute_mask(next_input_target)  # mask of ground truth should be the same
+            next_target_mask = compute_mask(next_input_target, self.word2id['[PAD]'])  # mask of ground truth should be the same
             next_pred = self.target_net.decode(next_input_target, next_target_mask, next_aggregated_obs_representation, next_obs_mask, None, next_input_obs)  # batch x target_length x vocab
             next_q_value = GetGenerationQValue(next_pred * next_target_mask.unsqueeze(-1), next_ground_truth, next_target_mask)  # batch
 
@@ -855,7 +855,7 @@ class TextDQNAgent(BaseAgent):
             averaged_representation = self.online_net.masked_mean(aggregated_obs_representation, obs_mask)  # batch x hid
             current_dynamics = self.online_net.rnncell(averaged_representation, previous_dynamics) if previous_dynamics is not None else self.online_net.rnncell(averaged_representation)
 
-            target_mask = compute_mask(input_target)  # mask of ground truth should be the same
+            target_mask = compute_mask(input_target, self.word2id['[PAD]'])  # mask of ground truth should be the same
             pred = self.online_net.decode(input_target, target_mask, aggregated_obs_representation, obs_mask, current_dynamics, input_obs)  # batch x target_length x vocab
             q_value = GetGenerationQValue(pred * target_mask.unsqueeze(-1), ground_truth, target_mask)
 
@@ -882,7 +882,7 @@ class TextDQNAgent(BaseAgent):
                     input_target = copy.deepcopy(input_target_list)
                     input_target = pad_sequences(input_target, maxlen=max_len(input_target)).astype('int32')
                     input_target = to_pt(input_target, self.use_cuda)
-                    target_mask = compute_mask(input_target)  # mask of ground truth should be the same
+                    target_mask = compute_mask(input_target, self.word2id['[PAD]'])  # mask of ground truth should be the same
                     pred = self.online_net.decode(input_target, target_mask, next_aggregated_obs_representation, next_obs_mask, next_dynamics, next_input_obs)  # batch x target_length x vocab
                     # pointer softmax
                     pred = to_np(pred[:, -1])  # batch x vocab
@@ -910,7 +910,7 @@ class TextDQNAgent(BaseAgent):
                 next_averaged_representation = self.target_net.masked_mean(next_aggregated_obs_representation, next_obs_mask)  # batch x hid
                 next_dynamics = self.target_net.rnncell(averaged_representation, current_dynamics) if current_dynamics is not None else self.target_net.rnncell(next_averaged_representation)
 
-                next_target_mask = compute_mask(next_input_target)  # mask of ground truth should be the same
+                next_target_mask = compute_mask(next_input_target, self.word2id['[PAD]'])  # mask of ground truth should be the same
                 next_pred = self.target_net.decode(next_input_target, next_target_mask, next_aggregated_obs_representation, next_obs_mask, next_dynamics, next_input_obs)  # batch x target_length x vocab
                 next_q_value = GetGenerationQValue(next_pred * next_target_mask.unsqueeze(-1), next_ground_truth, next_target_mask)  # batch
 

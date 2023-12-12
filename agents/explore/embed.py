@@ -24,7 +24,7 @@ class ProblemIDEmbedder(nn.Module):
 class ProblemHandler():
     def __init__(self, num_train_game):
         super(ProblemHandler, self).__init__()
-        self.problem_id_embedder = ProblemIDEmbedder(num_train_game, 64).cuda()
+        self.problem_id_embedder = ProblemIDEmbedder(num_train_game, 768).cuda()
         self.optimizer = torch.optim.Adam(self.problem_id_embedder.parameters(), lr=0.001)
 
     def get_problem_embeddings(self, problem_ids: List[int]):

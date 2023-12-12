@@ -89,7 +89,7 @@ class TextDAggerAgent(BaseAgent):
 
         input_target = self.get_word_input(input_target_strings)
         ground_truth = self.get_word_input(output_target_strings)  # batch x target_length
-        target_mask = compute_mask(input_target)  # mask of ground truth should be the same
+        target_mask = compute_mask(input_target, self.word2id['[PAD]'])  # mask of ground truth should be the same
         pred = self.online_net.decode(input_target, target_mask, aggregated_obs_representation, obs_mask, None, input_obs)  # batch x target_length x vocab
 
         batch_loss = NegativeLogLoss(pred * target_mask.unsqueeze(-1), ground_truth, target_mask, smoothing_eps=self.smoothing_eps)
@@ -175,7 +175,7 @@ class TextDAggerAgent(BaseAgent):
 
             input_target = self.get_word_input(input_target_strings)
             ground_truth = self.get_word_input(output_target_strings)  # batch x target_length
-            target_mask = compute_mask(input_target)  # mask of ground truth should be the same
+            target_mask = compute_mask(input_target, self.word2id['[PAD]'])  # mask of ground truth should be the same
             pred = self.online_net.decode(input_target, target_mask, aggregated_obs_representation, obs_mask, current_dynamics, input_obs)  # batch x target_length x vocab
 
             previous_dynamics = current_dynamics
@@ -243,7 +243,7 @@ class TextDAggerAgent(BaseAgent):
                 input_target = copy.deepcopy(input_target_list)
                 input_target = pad_sequences(input_target, maxlen=max_len(input_target)).astype('int32')
                 input_target = to_pt(input_target, self.use_cuda)
-                target_mask = compute_mask(input_target)  # mask of ground truth should be the same
+                target_mask = compute_mask(input_target, self.word2id['[PAD]'])  # mask of ground truth should be the same
                 pred = self.online_net.decode(input_target, target_mask, aggregated_obs_representation, obs_mask, current_dynamics, input_obs)  # batch x target_length x vocab
                 # pointer softmax
                 pred = to_np(pred[:, -1])  # batch x vocab
@@ -322,7 +322,7 @@ class TextDAggerAgent(BaseAgent):
 
                     input_target = pad_sequences([__input_target_list], dtype='int32')
                     input_target = to_pt(input_target, self.use_cuda)
-                    target_mask = compute_mask(input_target)
+                    target_mask = compute_mask(input_target, self.word2id['[PAD]'])
                     # decode for one step using decoder
                     pred = self.online_net.decode(input_target, target_mask, __aggregated_obs_representation, __obs_mask, __current_dynamics, __input_obs)  # 1 x target_length x vocab
                     pred = pred[0][-1].cpu()

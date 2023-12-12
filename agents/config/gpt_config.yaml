@@ -69,11 +69,12 @@ general:
     encoder_layers: 1
     decoder_layers: 1
     encoder_conv_num: 5
-    block_hidden_dim: 64
+    block_hidden_dim: 768
     n_heads: 1
     dropout: 0.1
     block_dropout: 0.1
     recurrent: True
+    mode: lora16
 
 rl:
   action_space: "admissible"                                # 'admissible' (candidates from text engine) or 'generation' (seq2seq-style generation) or 'beam_search_choice' or 'exhaustive' (not working)

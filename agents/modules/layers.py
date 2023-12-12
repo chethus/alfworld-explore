@@ -5,8 +5,8 @@ import h5py
 import torch.nn.functional as F
 
 
-def compute_mask(x):
-    mask = torch.ne(x, 0).float()
+def compute_mask(x, pad_ind):
+    mask = torch.ne(x, pad_ind).float()
     if x.is_cuda:
         mask = mask.cuda()
     return mask

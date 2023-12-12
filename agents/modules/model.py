@@ -13,11 +13,11 @@ logger = logging.getLogger(__name__)
 class Policy(torch.nn.Module):
     model_name = 'policy'
 
-    def __init__(self, config, bert_model, word_vocab_size):
+    def __init__(self, config, transformer_model, word_vocab_size):
         super(Policy, self).__init__()
         self.config = config
         self.training_method = self.config['general']['training_method']
-        self.bert_model = bert_model
+        self.transformer_model = transformer_model
         self.word_vocab_size = word_vocab_size
         self.read_config()
         self._def_layers()
@@ -78,10 +78,10 @@ class Policy(torch.nn.Module):
         self.decoder = torch.nn.ModuleList([DecoderBlock(ch_num=self.block_hidden_dim, k=5, block_hidden_dim=self.block_hidden_dim, n_head=self.n_heads, dropout=self.block_dropout) for _ in range(self.decoder_layers)])
         self.decoding_to_embedding = torch.nn.Linear(self.block_hidden_dim, BERT_EMBEDDING_SIZE)
         self.embedding_to_words = torch.nn.Linear(BERT_EMBEDDING_SIZE, self.word_vocab_size, bias=False)
-        if self.bert_model.__class__.__name__ == "GPT2Model":
-            self.embedding_to_words.weight = self.bert_model.wte.weight
+        if self.transformer_model.__class__.__name__ == "GPT2Model":
+            self.embedding_to_words.weight = self.transformer_model.wte.weight
         else:
-            self.embedding_to_words.weight = self.bert_model.embeddings.word_embeddings.weight
+            self.embedding_to_words.weight = self.transformer_model.embeddings.word_embeddings.weight
         self.embedding_to_words.weight.requires_grad = False
         self.pointer_softmax = PointerSoftmax(input_dim=self.block_hidden_dim, hidden_dim=self.block_hidden_dim)
 
@@ -114,10 +114,10 @@ class Policy(torch.nn.Module):
             return torch.cat(outputs, 1)
 
         with torch.no_grad():
-            if self.bert_model.__class__.__name__ == "GPT2Model":
-                res = self.bert_model.wte(_input_words)
+            if self.transformer_model.__class__.__name__ == "GPT2Model":
+                res = self.transformer_model.wte(_input_words)
             else:
-                res = self.bert_model.embeddings(_input_words)
+                res = self.transformer_model.embeddings(_input_words)
             res = res * _input_masks.unsqueeze(-1)
         return res
 
@@ -128,13 +128,25 @@ class Policy(torch.nn.Module):
         word_embeddings = word_embeddings * input_word_masks.unsqueeze(-1)  # batch x time x hid
         return word_embeddings
 
-    def encode_text(self, input_word_ids):
+    def encode_text_transformer(self, input_sequences, input_word_masks):
+        input_sequences[~input_word_masks] = -100
+        return self.transformer_model(**input_sequences).hidden_states
+
+    def encode_text(self, input_word_ids, pad_ind, encode_transformer: bool = False):
         # input_word_ids: batch x seq_len
         # text embedding / encoding
-        input_word_masks = compute_mask(input_word_ids)
-        embeddings = self.embed(input_word_ids, input_word_masks)  # batch x seq_len x emb
+        input_word_masks = compute_mask(input_word_ids, pad_ind)
+        if encode_transformer:
+            encoding_sequence = self.transformer_model(
+                input_word_ids,
+                attention_mask=input_word_masks,
+                output_hidden_states=True,
+                output_attentions=True,
+            ).hidden_states[-1]
+        else:
+            embeddings = self.embed(input_word_ids, input_word_masks)  # batch x seq_len x emb
+            encoding_sequence = embeddings
         squared_mask = torch.bmm(input_word_masks.unsqueeze(-1), input_word_masks.unsqueeze(1))  # batch x seq_len x seq_len
-        encoding_sequence = embeddings
         for i in range(self.encoder_layers):
             encoding_sequence = self.encoder[i](encoding_sequence, input_word_masks, squared_mask, i * (self.encoder_conv_num + 2) + 1, self.encoder_layers)  # batch x time x enc
         return encoding_sequence, input_word_masks
